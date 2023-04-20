@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Detector</title>
+		<link rel="icon" type="image/x-icon" href="https://images.pexels.com/photos/1194775/pexels-photo-1194775.jpeg">
+		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KK94CHFLLe+nY2dmCWGMq91rCGa5gtU4mk92HdvYe+M/SXH301p5ILy+dN9+nJOZ" crossorigin="anonymous">
+	</head>
+
+	<body>
+		<div id="app" class="container-fluid mt-3">
+
+
+			<div class="container">
+
+				<!-- Input -->
+				<div class="card">
+					<div class="card-header">Detector</div>
+					<div class="card-body">
+						<label>Paste your content here</label>
+						<textarea v-model="content" @change="checkContent" class="form-control" cols="30" rows="10" :disabled="loading" placeholder="Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book."></textarea>
+						<button class="btn btn-primary mt-1" type="button" :disabled="loading" @click="checkContent">
+							<span v-if="loading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+							Check
+						</button>
+					</div>
+				</div>
+				<!-- END Input -->
+
+				<!-- Error Messages -->
+				<div v-if="errorMsgs.length > 0" class="alert alert-danger mt-1" role="alert">
+					<p v-for="msg in errorMsgs" v-html="msg"></p>
+				</div>
+				<!-- END Error Messages -->
+
+				<!-- Results -->
+				<div class="d-flex mt-1">
+					<div class="card px-0 mx-1 w-100">
+						<div class="card-header">ZeroGPT</div>
+						<div class="card-body">
+							<div v-for="display in zerogptResponse.displays" class="row mb-3">
+								<label class="col-3 col-form-label" v-html="display.field"></label>
+								<div class="col-9">
+									<input type="text" class="form-control disabled" disabled readonly :value="display.value">
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="card px-0 mx-1 w-100">
+						<div class="card-header">GPTZero</div>
+						<div class="card-body">
+							<div v-for="display in gptzeroResponse.displays" class="row mb-3">
+								<label class="col-3 col-form-label" v-html="display.field"></label>
+								<div class="col-9">
+									<input type="text" class="form-control disabled" disabled readonly :value="display.value">
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<!-- END Results -->
+
+		</div>
+
+		<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+		<script src="https://code.jquery.com/jquery-3.6.4.slim.min.js" integrity="sha256-a2yjHM4jnF9f54xUQakjZGaqYs/V1CYvWpoqZzC2/Bw=" crossorigin="anonymous"></script>
+		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ENjdO4Dr2bkBIFxQpeoTz1HIcje39Wm4jDKdf19U8gI4ddQ3GYNS7NTKfAdVQSZe" crossorigin="anonymous"></script>
+
+		<script>
+			const { createApp } = Vue;
+			let app = createApp({
+				data () {
+					return {
+						content: "",
+						errorMsgs: [],
+						loading: false,
+
+						providers: [
+							{
+								name: "ZeroGPT",
+								contentField: 'input_text',
+								url: "https://api.zerogpt.com/api/detect/detectText",
+								headers: {},
+								body: {},
+								cleanup: () => {
+									let display = [];
+									let percentGenerated = 'ERROR';
+									let probability = app.zerogptResponse.data?.fakePercentage;
+
+									if (probability) {
+										percentGenerated = probability.toFixed(2);
+									}
+
+									app.zerogptResponse.displays = display;
+									display.push({
+										field: 'Percentage Generated',
+										value: percentGenerated
+									});
+								},
+							},
+							{
+								name: "GPTZero",
+								contentField: 'document',
+								url: "https://api.gptzero.me/v2/predict/text",
+								headers: {
+									'Access-Control-Allow-Origin': '*'
+								},
+								body: {},
+								cleanup: () => {
+									let display = [];
+									let percentGenerated = 'ERROR';
+									let probability = app.gptzeroResponse.documents[0]?.completely_generated_prob;
+
+									if (probability) {
+										percentGenerated = probability.toFixed(2);
+									}
+
+									app.gptzeroResponse.displays = display;
+									display.push({
+										field: 'Percentage Generated',
+										value: percentGenerated
+									});
+
+								},
+							},
+						],
+
+						zerogptResponse: {},
+						gptzeroResponse: {},
+					};
+				},
+				methods: {
+					checkContent () {
+						let self = this;
+						this.loading = true;
+
+
+						// self.zerogptResponse = { "success": true, "data": { "paragraphScore": 5.615593910217285, "isHuman": 0, "additional_feedback": "", "h": ["There are a number of factors to consider when evaluating the real-world value of a cryptocurrency.", "What is the cryptocurrency used for?", "Does it solve a real-world problem?", "Do they have a strong track record and a clear vision for the future?", "Does the cryptocurrency have a strong community of users and developers?", "Is there a lot of interest and excitement around the project?", "How is the cryptocurrency performing in the market?", "By considering all of these factors, you can get a better idea of whether or not a cryptocurrency has real-world value.", "Here are some additional things to consider when evaluating the real-world value of a cryptocurrency:", "Cryptocurrencies are known for their volatility, which means that their prices can fluctuate wildly.", "This can make it difficult to predict how much a cryptocurrency will be worth in the future.", "Cryptocurrencies are still a relatively new asset class, and the regulatory landscape around them is still evolving.", "This can create uncertainty for investors, and it can make it difficult to determine whether or not a cryptocurrency is a good investment.", "There have been a number of cases of fraud involving cryptocurrencies.", "This is something to keep in mind when evaluating the real-world value of a cryptocurrency."], "textWords": 252, "aiWords": 205, "fakePercentage": 81.35, "specialIndexes": [14, 11, 8], "specialSentences": ["The market.", "The community.", "The team."], "input_text": "" }, "code": 200, "message": "Detection complete" };
+						// self.gptzeroResponse = { "documents": [{ "average_generated_prob": 0, "completely_generated_prob": 0.1234, "overall_burstiness": 760.8619995117188, "paragraphs": [{ "completely_generated_prob": 0.11111111111111108, "num_sentences": 1, "start_sentence_index": 0 }, { "completely_generated_prob": 0.11111111111111108, "num_sentences": 1, "start_sentence_index": 1 }, { "completely_generated_prob": 0.11111111111111108, "num_sentences": 1, "start_sentence_index": 2 }, { "completely_generated_prob": 0.11111111111111108, "num_sentences": 1, "start_sentence_index": 3 }, { "completely_generated_prob": 0.11111111111111108, "num_sentences": 1, "start_sentence_index": 4 }, { "completely_generated_prob": 0.11111111111111108, "num_sentences": 1, "start_sentence_index": 5 }], "sentences": [{ "generated_prob": 0, "perplexity": 1244, "sentence": "Crypto provider regulation (Provider protection)" }, { "generated_prob": 0, "perplexity": 119, "sentence": "Leverage cannot be applied to crypto assets" }, { "generated_prob": 0, "perplexity": 1812, "sentence": "Provider cannot hold more than 20% raw crypto assets of total profit" }, { "generated_prob": 0, "perplexity": 119, "sentence": "provider cannot deal with more than 5 types of different crypto assets" }, { "generated_prob": 0, "perplexity": 23, "sentence": "If any of the crypto assets that the business holds has lost more than 70% of its value, the business needs to sell all the assets to cut losses." }, { "generated_prob": 0, "perplexity": 132, "sentence": "Only client with a good investment record will be allow to invest in the crypto assets provided" }] }] };
+						// self.providers[0].cleanup();
+						// self.providers[1].cleanup();
+
+						self.providers.forEach(provider => {
+							if (self.content?.length > 0) {
+								let requestBody = {};
+								let headers = { 'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/json' };
+
+								$.extend(headers, provider.headers);
+								$.extend(requestBody, provider.body);
+
+								headers['content-length'] = self.content.length;
+								requestBody[provider.contentField] = self.content;
+
+								console.log(`Processing ${provider.name}. endpoint: ${provider.url}. headers: {${JSON.stringify(headers)}}. requestBody: ${JSON.stringify(requestBody)}`);
+								axios.post(provider.url, requestBody)
+
+									.then(response => {
+										self.loading = false;
+										self[`${provider.name.toLowerCase()}Response`] = response;
+										provider.cleanup(response);
+
+										console.log(`Process ${provider.name} successfully!`);
+									})
+
+									.catch(error => {
+										self.loading = false;
+										console.log(`Process ${provider.name} with error. ${error}`);
+										self.errorMsgs.push(error);
+									});
+							} else {
+								this.loading = false;
+							}
+						});
+					}
+				},
+				mounted () { }
+			}).mount('#app')
+		</script>
+	</body>
+
+</html>
